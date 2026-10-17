@@ -38,11 +38,14 @@ function renderQuotaLine(quota: NormalizedQuota): string {
   const coloredBar = `[${colorizeBar(rawBar, quota.color)}]`;
   const pct = colorizePercent(quota.usedPercent, quota.color);
   const countdown = formatResetCountdown(quota.resetsAtMs);
-  const resetText = chalk.dim(`resets in ${countdown}`);
+  const resetText =
+    countdown === "Reset imminent"
+      ? chalk.dim("Reset imminent")
+      : chalk.dim(`resets in ${countdown}`);
   const statusFlag =
     quota.status === "exhausted" ? chalk.bgRed.white.bold(" EXHAUSTED ") : "";
 
-  return `    ● ${chalk.cyan(label)} ${coloredBar} ${pct} used · ${resetText} ${statusFlag}`;
+  return `    ● ${chalk.cyan(label)} ${coloredBar} ${pct} used · ${resetText}${statusFlag ? ` ${statusFlag}` : ""}`;
 }
 
 function renderProviderSection(p: NormalizedProvider): string {
@@ -65,7 +68,7 @@ export function renderOneShotSummary(data: NormalizedDashboardData): string {
   const divider = chalk.dim("─".repeat(70));
 
   if (data.providers.length === 0) {
-    return `${title}\n${divider}\n  ${chalk.yellow("No authenticated AI subscriptions detected.")}\n`;
+    return `\n${title}\n${divider}\n\n  ${chalk.yellow("No authenticated AI subscriptions detected.")}\n\n${divider}\n`;
   }
 
   const sections = data.providers.map(renderProviderSection).join("\n\n");

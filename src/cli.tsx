@@ -6,14 +6,16 @@ import { printOneShot } from "./views/OneShotView.ts";
 import { App } from "./App.tsx";
 
 export function parseInterval(arg?: string): number {
-  if (!arg) return 90;
+  if (!arg) {
+    return 90;
+  }
   if (arg.endsWith("m")) {
     const mins = parseFloat(arg.slice(0, -1));
-    return Math.max(10, Math.round(mins * 60));
+    return isNaN(mins) ? 90 : Math.max(10, Math.round(mins * 60));
   }
   if (arg.endsWith("s")) {
     const secs = parseFloat(arg.slice(0, -1));
-    return Math.max(10, Math.round(secs));
+    return isNaN(secs) ? 90 : Math.max(10, Math.round(secs));
   }
   const parsed = parseInt(arg, 10);
   return isNaN(parsed) ? 90 : Math.max(10, parsed);

@@ -1,4 +1,7 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import path from "node:path";
 import type { NormalizedDashboardData, RawUsageOutput } from "./types.ts";
 import { normalizeUsageData } from "./formatter.ts";
 
@@ -13,8 +16,18 @@ export function parseUsageOutput(stdout: string): RawUsageOutput {
 }
 
 export function locateOmpBinary(): string {
-  if (process.env.OMP_BIN) return process.env.OMP_BIN;
-  return "/home/anno/.bun/bin/omp";
+  if (process.env.OMP_BIN) {
+    return process.env.OMP_BIN;
+  }
+  const homeBunOmp = path.join(homedir(), ".bun", "bin", "omp");
+  if (existsSync(homeBunOmp)) {
+    return homeBunOmp;
+  }
+  const defaultBunOmp = "/home/anno/.bun/bin/omp";
+  if (existsSync(defaultBunOmp)) {
+    return defaultBunOmp;
+  }
+  return "omp";
 }
 
 export async function fetchUsageRaw(options: { timeoutMs?: number; ompPath?: string } = {}): Promise<RawUsageOutput> {
@@ -64,7 +77,10 @@ export async function fetchUsageRaw(options: { timeoutMs?: number; ompPath?: str
   });
 }
 
-export async function fetchDashboardData(options?: { timeoutMs?: number }): Promise<NormalizedDashboardData> {
+export async function fetchDashboardData(options?: {
+  timeoutMs?: number;
+  ompPath?: string;
+}): Promise<NormalizedDashboardData> {
   const raw = await fetchUsageRaw(options);
   return normalizeUsageData(raw);
 }

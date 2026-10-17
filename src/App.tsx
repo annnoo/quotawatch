@@ -25,7 +25,9 @@ export const App: React.FC<Props> = ({ initialData, pollIntervalSeconds }) => {
   const [nowMs, setNowMs] = useState(Date.now());
 
   const triggerRefresh = useCallback(async () => {
-    if (isSyncingRef.current) return;
+    if (isSyncingRef.current) {
+      return;
+    }
     isSyncingRef.current = true;
     setIsSyncing(true);
     setErrorMsg(undefined);
@@ -46,17 +48,19 @@ export const App: React.FC<Props> = ({ initialData, pollIntervalSeconds }) => {
   useEffect(() => {
     const timer = setInterval(() => {
       setNowMs(Date.now());
-      setNextPollSeconds((prev) => {
-        if (prev <= 1) {
-          triggerRefresh();
-          return pollIntervalSeconds;
-        }
-        return prev - 1;
-      });
+      setNextPollSeconds((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [pollIntervalSeconds, triggerRefresh]);
+  }, []);
+
+  // Trigger refresh when countdown reaches 0
+  useEffect(() => {
+    if (nextPollSeconds === 0) {
+      triggerRefresh();
+      setNextPollSeconds(pollIntervalSeconds);
+    }
+  }, [nextPollSeconds, triggerRefresh, pollIntervalSeconds]);
 
   // Keybindings
   useInput((input, key) => {

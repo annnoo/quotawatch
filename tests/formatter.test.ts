@@ -34,6 +34,13 @@ describe("formatter", () => {
     expect(bar100).toBe("██████████");
   });
 
+  it("clamps progress bar boundaries correctly", () => {
+    const barNeg = renderProgressBar(-5, 10);
+    expect(barNeg).toBe("░░░░░░░░░░");
+    const barOver = renderProgressBar(150, 10);
+    expect(barOver).toBe("██████████");
+  });
+
   it("normalizes raw usage output cleanly", () => {
     const sampleRaw: RawUsageOutput = {
       providers: [
@@ -58,8 +65,90 @@ describe("formatter", () => {
     const normalized = normalizeUsageData(sampleRaw);
     expect(normalized.providers.length).toBe(1);
     expect(normalized.providers[0].displayName).toBe("OpenAI Codex");
-    expect(normalized.providers[0].quotas[0].name).toBe("5 hours");
+    expect(normalized.providers[0].quotas[0].name).toBe("Codex");
     expect(normalized.providers[0].quotas[0].usedPercent).toBe(15);
     expect(normalized.providers[0].quotas[0].color).toBe("green");
+  });
+
+  it("supports raw.reports payload structure", () => {
+    const sampleRaw: RawUsageOutput = {
+      reports: [
+        {
+          provider: "google-antigravity",
+          fetchedAt: 1700000000000,
+          limits: [
+            {
+              id: "gemini-weekly",
+              label: "Gemini",
+              scope: { provider: "google-antigravity", windowId: "weekly" },
+              window: { id: "weekly", label: "Weekly", durationMs: 604800000, resetsAt: 1700060000000 },
+              amount: { used: 40, limit: 100, remaining: 60, usedFraction: 0.4, unit: "percent" },
+              status: "ok"
+            }
+          ]
+        }
+      ]
+    };
+
+    const normalized = normalizeUsageData(sampleRaw);
+    expect(normalized.providers.length).toBe(1);
+    expect(normalized.providers[0].displayName).toBe("Google Antigravity");
+    expect(normalized.providers[0].quotas[0].name).toBe("Gemini");
+    expect(normalized.providers[0].quotas[0].usedPercent).toBe(40);
+  });
+
+  it("deduplicates shared groups and identical quotas defensively", () => {
+    const sampleRaw: RawUsageOutput = {
+      providers: [
+        {
+          provider: "google-antigravity",
+          fetchedAt: 1700000000000,
+          resetCredits: {
+            availableCount: 1
+          },
+          limits: [
+            {
+              id: "anthropic-shared",
+              label: "Claude & GPT (shared)",
+              scope: { provider: "google-antigravity", sharedGroup: "3p-weekly:weekly" },
+              window: { id: "weekly", label: "Weekly", durationMs: 604800000, resetsAt: 1700060000000 },
+              amount: { used: 50, limit: 100, remaining: 50, usedFraction: 0.5, unit: "percent" },
+              status: "ok"
+            },
+            {
+              id: "openai-shared",
+              label: "Claude & GPT (shared)",
+              scope: { provider: "google-antigravity", sharedGroup: "3p-weekly:weekly" },
+              window: { id: "weekly", label: "Weekly", durationMs: 604800000, resetsAt: 1700060000000 },
+              amount: { used: 50, limit: 100, remaining: 50, usedFraction: 0.5, unit: "percent" },
+              status: "ok"
+            },
+            {
+              id: "duplicate-without-group",
+              label: "Gemini",
+              scope: { provider: "google-antigravity" },
+              window: { id: "weekly", label: "Weekly", durationMs: 604800000, resetsAt: 1700060000000 },
+              amount: { used: 30, limit: 100, remaining: 70, usedFraction: 0.3, unit: "percent" },
+              status: "ok"
+            },
+            {
+              id: "duplicate-without-group-2",
+              label: "Gemini",
+              scope: { provider: "google-antigravity" },
+              window: { id: "weekly", label: "Weekly", durationMs: 604800000, resetsAt: 1700060000000 },
+              amount: { used: 30, limit: 100, remaining: 70, usedFraction: 0.3, unit: "percent" },
+              status: "ok"
+            }
+          ]
+        }
+      ]
+    };
+
+    const normalized = normalizeUsageData(sampleRaw);
+    expect(normalized.providers[0].quotas.length).toBe(2);
+    expect(normalized.providers[0].quotas[0].id).toBe("anthropic-shared");
+    expect(normalized.providers[0].quotas[1].id).toBe("duplicate-without-group");
+    expect(normalized.providers[0].resetCredits?.count).toBe(1);
+    expect(normalized.providers[0].resetCredits?.soonestExpiryDate).toBeUndefined();
   });
 });

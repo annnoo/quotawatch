@@ -45,6 +45,7 @@ export const CodexTab: React.FC<{ data: NormalizedDashboardData; nowMs: number }
               <ProgressBar usedPercent={q.usedPercent} color={q.color} width={30} />
               <Text bold color={q.color}>{q.usedPercent.toFixed(1)}% used</Text>
               <Text color="dim">({q.remainingPercent.toFixed(1)}% remaining)</Text>
+              {q.status === "exhausted" && <Text bold color="red">[EXHAUSTED]</Text>}
             </Box>
           </Box>
         ))}

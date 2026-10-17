@@ -24004,6 +24004,9 @@ var import_react20 = __toESM(require_react(), 1);
 var import_react21 = __toESM(require_react(), 1);
 // src/fetcher.ts
 import { spawn } from "child_process";
+import { existsSync as existsSync2 } from "fs";
+import { homedir } from "os";
+import path from "path";
 
 // src/formatter.ts
 function formatDuration(ms) {
@@ -24059,13 +24062,42 @@ function getProviderDisplayName(providerId) {
       return providerId.split("-").map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(" ");
   }
 }
+function getProviderCleanName(providerId) {
+  if (providerId === "openai-codex") {
+    return "Codex";
+  }
+  if (providerId === "google-antigravity") {
+    return "Antigravity";
+  }
+  if (providerId === "github-copilot") {
+    return "Copilot";
+  }
+  const parts = providerId.split("-");
+  const last = parts[parts.length - 1];
+  return last.charAt(0).toUpperCase() + last.slice(1);
+}
 function normalizeProvider(p) {
-  const quotas = (p.limits || []).map((l) => {
+  const seenSharedGroups = new Set;
+  const seenQuotaKeys = new Set;
+  const quotas = [];
+  for (const l of p.limits || []) {
+    if (l.scope?.sharedGroup) {
+      if (seenSharedGroups.has(l.scope.sharedGroup)) {
+        continue;
+      }
+      seenSharedGroups.add(l.scope.sharedGroup);
+    }
+    const name = l.label.toLowerCase() === l.window.label.toLowerCase() ? getProviderCleanName(p.provider) : l.label;
+    const quotaKey = `${name}|${l.window.label}|${l.window.resetsAt}`;
+    if (seenQuotaKeys.has(quotaKey)) {
+      continue;
+    }
+    seenQuotaKeys.add(quotaKey);
     const used = l.amount.used;
     const color = getHealthColor(used, l.status);
-    return {
+    quotas.push({
       id: l.id,
-      name: l.label,
+      name,
       windowLabel: l.window.label,
       durationMs: l.window.durationMs,
       usedPercent: Math.round(used * 10) / 10,
@@ -24074,8 +24106,8 @@ function normalizeProvider(p) {
       status: l.status === "exhausted" ? "exhausted" : color === "yellow" ? "warning" : "ok",
       color,
       shared: Boolean(l.scope?.shared)
-    };
-  });
+    });
+  }
   let overallHealth = "green";
   if (quotas.some((q) => q.color === "red")) {
     overallHealth = "red";
@@ -24084,7 +24116,7 @@ function normalizeProvider(p) {
   }
   let resetCredits;
   if (p.resetCredits && p.resetCredits.availableCount > 0) {
-    const available = p.resetCredits.credits.filter((c) => c.status === "available");
+    const available = (p.resetCredits.credits || []).filter((c) => c.status === "available");
     const sorted = [...available].sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime());
     resetCredits = {
       count: p.resetCredits.availableCount,
@@ -24103,9 +24135,10 @@ function normalizeProvider(p) {
   };
 }
 function normalizeUsageData(raw) {
+  const providerList = raw.reports ?? raw.providers ?? [];
   return {
     fetchedAt: Date.now(),
-    providers: (raw.providers || []).map(normalizeProvider)
+    providers: providerList.map(normalizeProvider)
   };
 }
 
@@ -24120,9 +24153,18 @@ function parseUsageOutput(stdout) {
   return JSON.parse(cleanJson);
 }
 function locateOmpBinary() {
-  if (process.env.OMP_BIN)
+  if (process.env.OMP_BIN) {
     return process.env.OMP_BIN;
-  return "/home/anno/.bun/bin/omp";
+  }
+  const homeBunOmp = path.join(homedir(), ".bun", "bin", "omp");
+  if (existsSync2(homeBunOmp)) {
+    return homeBunOmp;
+  }
+  const defaultBunOmp = "/home/anno/.bun/bin/omp";
+  if (existsSync2(defaultBunOmp)) {
+    return defaultBunOmp;
+  }
+  return "omp";
 }
 async function fetchUsageRaw(options = {}) {
   const timeoutMs = options.timeoutMs ?? 15000;
@@ -24196,9 +24238,9 @@ function renderQuotaLine(quota) {
   const coloredBar = `[${colorizeBar(rawBar, quota.color)}]`;
   const pct = colorizePercent(quota.usedPercent, quota.color);
   const countdown = formatResetCountdown(quota.resetsAtMs);
-  const resetText = source_default.dim(`resets in ${countdown}`);
+  const resetText = countdown === "Reset imminent" ? source_default.dim("Reset imminent") : source_default.dim(`resets in ${countdown}`);
   const statusFlag = quota.status === "exhausted" ? source_default.bgRed.white.bold(" EXHAUSTED ") : "";
-  return `    \u25CF ${source_default.cyan(label)} ${coloredBar} ${pct} used \xB7 ${resetText} ${statusFlag}`;
+  return `    \u25CF ${source_default.cyan(label)} ${coloredBar} ${pct} used \xB7 ${resetText}${statusFlag ? ` ${statusFlag}` : ""}`;
 }
 function renderProviderSection(p) {
   const emailPart = p.email ? source_default.dim(` (${p.email})`) : "";
@@ -24215,9 +24257,13 @@ function renderOneShotSummary(data) {
   const title = source_default.bold.cyan("\u25C8 QuotaWatch") + source_default.dim(` \u2014 AI Subscription Quotas (${timeStr})`);
   const divider = source_default.dim("\u2500".repeat(70));
   if (data.providers.length === 0) {
-    return `${title}
+    return `
+${title}
 ${divider}
+
   ${source_default.yellow("No authenticated AI subscriptions detected.")}
+
+${divider}
 `;
   }
   const sections = data.providers.map(renderProviderSection).join(`
@@ -24412,12 +24458,9 @@ var OverviewTab = ({
                 /* @__PURE__ */ jsx_runtime3.jsx(Box_default, {
                   width: 22,
                   justifyContent: "flex-end",
-                  children: /* @__PURE__ */ jsx_runtime3.jsxs(Text, {
+                  children: /* @__PURE__ */ jsx_runtime3.jsx(Text, {
                     color: "gray",
-                    children: [
-                      "resets in ",
-                      countdown
-                    ]
+                    children: countdown === "Reset imminent" ? countdown : `resets in ${countdown}`
                   })
                 })
               ]
@@ -24659,6 +24702,11 @@ var CodexTab = ({
                     q.remainingPercent.toFixed(1),
                     "% remaining)"
                   ]
+                }),
+                q.status === "exhausted" && /* @__PURE__ */ jsx_runtime5.jsx(Text, {
+                  bold: true,
+                  color: "red",
+                  children: "[EXHAUSTED]"
                 })
               ]
             })
@@ -24742,8 +24790,9 @@ var App2 = ({ initialData, pollIntervalSeconds }) => {
   const [errorMsg, setErrorMsg] = import_react22.useState();
   const [nowMs, setNowMs] = import_react22.useState(Date.now());
   const triggerRefresh = import_react22.useCallback(async () => {
-    if (isSyncingRef.current)
+    if (isSyncingRef.current) {
       return;
+    }
     isSyncingRef.current = true;
     setIsSyncing(true);
     setErrorMsg(undefined);
@@ -24762,16 +24811,16 @@ var App2 = ({ initialData, pollIntervalSeconds }) => {
   import_react22.useEffect(() => {
     const timer = setInterval(() => {
       setNowMs(Date.now());
-      setNextPollSeconds((prev) => {
-        if (prev <= 1) {
-          triggerRefresh();
-          return pollIntervalSeconds;
-        }
-        return prev - 1;
-      });
+      setNextPollSeconds((prev) => prev > 0 ? prev - 1 : 0);
     }, 1000);
     return () => clearInterval(timer);
-  }, [pollIntervalSeconds, triggerRefresh]);
+  }, []);
+  import_react22.useEffect(() => {
+    if (nextPollSeconds === 0) {
+      triggerRefresh();
+      setNextPollSeconds(pollIntervalSeconds);
+    }
+  }, [nextPollSeconds, triggerRefresh, pollIntervalSeconds]);
   use_input_default((input, key) => {
     if (input === "q" || key.escape) {
       exit();
@@ -24821,15 +24870,16 @@ var App2 = ({ initialData, pollIntervalSeconds }) => {
 // src/cli.tsx
 var jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
 function parseInterval(arg) {
-  if (!arg)
+  if (!arg) {
     return 90;
+  }
   if (arg.endsWith("m")) {
     const mins = parseFloat(arg.slice(0, -1));
-    return Math.max(10, Math.round(mins * 60));
+    return isNaN(mins) ? 90 : Math.max(10, Math.round(mins * 60));
   }
   if (arg.endsWith("s")) {
     const secs = parseFloat(arg.slice(0, -1));
-    return Math.max(10, Math.round(secs));
+    return isNaN(secs) ? 90 : Math.max(10, Math.round(secs));
   }
   const parsed = parseInt(arg, 10);
   return isNaN(parsed) ? 90 : Math.max(10, parsed);

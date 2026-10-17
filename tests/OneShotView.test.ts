@@ -109,4 +109,46 @@ describe("OneShotView", () => {
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
   });
+
+  it("formats 'Reset imminent' properly without 'resets in' prefix", () => {
+    const mockData: NormalizedDashboardData = {
+      fetchedAt: Date.now(),
+      providers: [
+        {
+          id: "openai-codex",
+          displayName: "OpenAI Codex",
+          fetchedAt: Date.now(),
+          quotas: [
+            {
+              id: "codex-5h",
+              name: "Codex",
+              windowLabel: "5h",
+              durationMs: 18000000,
+              usedPercent: 20,
+              remainingPercent: 80,
+              resetsAtMs: Date.now() - 5000,
+              status: "ok",
+              color: "green",
+            }
+          ],
+          overallHealth: "green"
+        }
+      ]
+    };
+
+    const output = renderOneShotSummary(mockData);
+    expect(output).toContain("Reset imminent");
+    expect(output).not.toContain("resets in Reset imminent");
+  });
+
+  it("includes leading newline and bottom divider when empty", () => {
+    const mockData: NormalizedDashboardData = {
+      fetchedAt: Date.now(),
+      providers: []
+    };
+
+    const output = renderOneShotSummary(mockData);
+    expect(output.startsWith("\n")).toBe(true);
+    expect(output.endsWith("─\n")).toBe(true);
+  });
 });

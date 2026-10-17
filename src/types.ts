@@ -30,7 +30,7 @@ export interface RawProvider {
   limits: RawQuotaLimit[];
   resetCredits?: {
     availableCount: number;
-    credits: Array<{
+    credits?: Array<{
       grantedAt: string;
       expiresAt: string;
       status: string;
@@ -47,7 +47,8 @@ export interface RawProvider {
 }
 
 export interface RawUsageOutput {
-  providers: RawProvider[];
+  providers?: RawProvider[];
+  reports?: RawProvider[];
   accountsWithoutUsage?: unknown[];
   disabledCredentials?: unknown[];
   capacity?: Record<string, unknown[]>;

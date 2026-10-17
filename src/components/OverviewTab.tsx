@@ -37,7 +37,11 @@ export const OverviewTab: React.FC<{ data: NormalizedDashboardData; nowMs: numbe
                     </Text>
                   </Box>
                   <Box width={22} justifyContent="flex-end">
-                    <Text color="gray">resets in {countdown}</Text>
+                    <Text color="gray">
+                      {countdown === "Reset imminent"
+                        ? countdown
+                        : `resets in ${countdown}`}
+                    </Text>
                   </Box>
                 </Box>
               );

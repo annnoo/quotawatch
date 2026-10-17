@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseUsageOutput } from "../src/fetcher";
+import { parseUsageOutput, locateOmpBinary } from "../src/fetcher";
 
 describe("fetcher", () => {
   it("parses valid JSON string output", () => {
@@ -26,5 +26,19 @@ describe("fetcher", () => {
 
   it("throws clear error on malformed non-JSON output", () => {
     expect(() => parseUsageOutput("Fatal crash in omp")).toThrow("Failed to locate valid JSON");
+  });
+
+  it("respects OMP_BIN env var in locateOmpBinary", () => {
+    const original = process.env.OMP_BIN;
+    try {
+      process.env.OMP_BIN = "/custom/path/to/omp";
+      expect(locateOmpBinary()).toBe("/custom/path/to/omp");
+    } finally {
+      if (original) {
+        process.env.OMP_BIN = original;
+      } else {
+        delete process.env.OMP_BIN;
+      }
+    }
   });
 });

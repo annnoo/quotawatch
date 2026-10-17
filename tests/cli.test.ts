@@ -6,6 +6,8 @@ describe("cli argument parsing", () => {
     expect(parseInterval(undefined)).toBe(90);
     expect(parseInterval("")).toBe(90);
     expect(parseInterval("invalid")).toBe(90);
+    expect(parseInterval("foos")).toBe(90);
+    expect(parseInterval("barm")).toBe(90);
   });
 
   it("parses seconds format (e.g. 30s, 120s)", () => {

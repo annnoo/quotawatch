@@ -68,13 +68,50 @@ export function getProviderDisplayName(providerId: string): string {
   }
 }
 
+export function getProviderCleanName(providerId: string): string {
+  if (providerId === "openai-codex") {
+    return "Codex";
+  }
+  if (providerId === "google-antigravity") {
+    return "Antigravity";
+  }
+  if (providerId === "github-copilot") {
+    return "Copilot";
+  }
+  const parts = providerId.split("-");
+  const last = parts[parts.length - 1];
+  return last.charAt(0).toUpperCase() + last.slice(1);
+}
+
 export function normalizeProvider(p: RawProvider): NormalizedProvider {
-  const quotas: NormalizedQuota[] = (p.limits || []).map((l) => {
+  const seenSharedGroups = new Set<string>();
+  const seenQuotaKeys = new Set<string>();
+  const quotas: NormalizedQuota[] = [];
+
+  for (const l of p.limits || []) {
+    if (l.scope?.sharedGroup) {
+      if (seenSharedGroups.has(l.scope.sharedGroup)) {
+        continue;
+      }
+      seenSharedGroups.add(l.scope.sharedGroup);
+    }
+
+    const name =
+      l.label.toLowerCase() === l.window.label.toLowerCase()
+        ? getProviderCleanName(p.provider)
+        : l.label;
+
+    const quotaKey = `${name}|${l.window.label}|${l.window.resetsAt}`;
+    if (seenQuotaKeys.has(quotaKey)) {
+      continue;
+    }
+    seenQuotaKeys.add(quotaKey);
+
     const used = l.amount.used;
     const color = getHealthColor(used, l.status);
-    return {
+    quotas.push({
       id: l.id,
-      name: l.label,
+      name,
       windowLabel: l.window.label,
       durationMs: l.window.durationMs,
       usedPercent: Math.round(used * 10) / 10,
@@ -83,8 +120,8 @@ export function normalizeProvider(p: RawProvider): NormalizedProvider {
       status: l.status === "exhausted" ? "exhausted" : color === "yellow" ? "warning" : "ok",
       color,
       shared: Boolean(l.scope?.shared),
-    };
-  });
+    });
+  }
 
   let overallHealth: 'green' | 'yellow' | 'red' = 'green';
   if (quotas.some((q) => q.color === 'red')) {
@@ -95,7 +132,7 @@ export function normalizeProvider(p: RawProvider): NormalizedProvider {
 
   let resetCredits: { count: number; soonestExpiryDate?: string } | undefined;
   if (p.resetCredits && p.resetCredits.availableCount > 0) {
-    const available = p.resetCredits.credits.filter((c) => c.status === "available");
+    const available = (p.resetCredits.credits || []).filter((c) => c.status === "available");
     const sorted = [...available].sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime());
     resetCredits = {
       count: p.resetCredits.availableCount,
@@ -116,8 +153,9 @@ export function normalizeProvider(p: RawProvider): NormalizedProvider {
 }
 
 export function normalizeUsageData(raw: RawUsageOutput): NormalizedDashboardData {
+  const providerList = raw.reports ?? raw.providers ?? [];
   return {
     fetchedAt: Date.now(),
-    providers: (raw.providers || []).map(normalizeProvider),
+    providers: providerList.map(normalizeProvider),
   };
 }
