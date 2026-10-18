@@ -2,13 +2,40 @@
   "name": "quotawatch",
   "version": "1.0.0",
   "description": "Terminal monitor for AI subscription usage & quota resets",
-  "main": "src/cli.tsx",
+  "bin": {
+    "quotawatch": "./dist/cli.js"
+  },
+  "main": "dist/cli.js",
   "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "bun run src/cli.tsx",
     "test": "bun test",
-    "build": "bun build src/cli.tsx --target=bun --outfile=dist/quotawatch"
+    "build:node": "bun build src/cli.tsx --target=node --outfile=dist/cli.js",
+    "build:bun": "bun build src/cli.tsx --target=bun --outfile=dist/quotawatch",
+    "build": "bun run build:node && bun run build:bun",
+    "prepublishOnly": "bun test && bun run build"
   },
+  "keywords": [
+    "ai",
+    "quota",
+    "usage",
+    "antigravity",
+    "codex",
+    "cli",
+    "tui",
+    "terminal",
+    "subscription",
+    "ink"
+  ],
+  "license": "MIT",
   "dependencies": {
     "chalk": "^5.4.1",
     "ink": "^5.1.0",

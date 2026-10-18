@@ -1,4 +1,5 @@
 node_modules/
 dist/*
 !dist/quotawatch
+!dist/cli.js
 .DS_Store

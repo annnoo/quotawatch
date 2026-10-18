@@ -42,30 +42,52 @@ quotawatch -w
 
 ---
 
-## 🚀 Installation
+## 🚀 Installation & Instant Run
 
-QuotaWatch is bundled as a self-contained executable powered by [Bun](https://bun.sh).
+### 1. Run Instantly (No Installation Required)
 
-### Global Binary Setup
+You can run QuotaWatch directly with **npx** (Node.js 18+) or **bunx** (Bun):
 
-1. **Clone and install dependencies:**
-   ```bash
-   git clone https://github.com/your-username/quotawatch.git /home/anno/Code/agents/quotawatch
-   cd /home/anno/Code/agents/quotawatch
-   bun install
-   ```
+```bash
+# One-shot rundown
+npx quotawatch
+# or
+bunx quotawatch
 
-2. **Build the standalone executable:**
-   ```bash
-   bun run build
-   chmod +x dist/quotawatch
-   ```
+# Interactive auto-updating dashboard
+npx quotawatch -w
+# or
+bunx quotawatch -w
+```
 
-3. **Symlink to your local PATH:**
-   ```bash
-   mkdir -p ~/.local/bin
-   ln -sf /home/anno/Code/agents/quotawatch/dist/quotawatch ~/.local/bin/quotawatch
-   ```
+---
+
+### 2. Global Install via Package Manager
+
+Install once to have `quotawatch` permanently available in your terminal:
+
+```bash
+# Using npm
+npm install -g quotawatch
+
+# Using bun
+bun install -g quotawatch
+```
+
+---
+
+### 3. Build & Install from Source
+
+```bash
+git clone https://github.com/your-username/quotawatch.git /home/anno/Code/agents/quotawatch
+cd /home/anno/Code/agents/quotawatch
+bun install
+bun run build
+
+# Link to local PATH
+mkdir -p ~/.local/bin
+ln -sf /home/anno/Code/agents/quotawatch/dist/cli.js ~/.local/bin/quotawatch
+```
 
 Ensure `~/.local/bin` is in your shell's `PATH`.
 
